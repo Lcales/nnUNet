@@ -1,6 +1,6 @@
 import torch
 from nnunetv2.training.loss.dice import SoftDiceLoss, MemoryEfficientSoftDiceLoss
-from nnunetv2.training.loss.robust_ce_loss import RobustCrossEntropyLoss, TopKLoss
+from nnunetv2.training.loss.robust_ce_loss import RobustCrossEntropyLoss, TopKLoss, FocalLossWithLogits
 from nnunetv2.utilities.helpers import softmax_helper_dim1
 from torch import nn
 
@@ -102,6 +102,44 @@ class DC_and_BCE_loss(nn.Module):
         else:
             ce_loss = self.ce(net_output, target_regions)
         result = self.weight_ce * ce_loss + self.weight_dice * dc_loss
+        return result
+
+
+class DC_and_Focal_loss(nn.Module):
+    def __init__(self, focal_kwargs, soft_dice_kwargs, weight_focal=1, weight_dice=1, use_ignore_label: bool = False,
+                 dice_class=MemoryEfficientSoftDiceLoss):
+        super(DC_and_Focal_loss, self).__init__()
+
+        if use_ignore_label:
+            focal_kwargs['reduction'] = 'none'
+
+        self.weight_dice = weight_dice
+        self.weight_focal = weight_focal
+        self.use_ignore_label = use_ignore_label
+
+        self.focal = FocalLossWithLogits(**focal_kwargs)
+        self.dc = dice_class(apply_nonlin=torch.sigmoid, **soft_dice_kwargs)
+
+    def forward(self, net_output: torch.Tensor, target: torch.Tensor):
+        if self.use_ignore_label:
+            if target.dtype == torch.bool:
+                mask = ~target[:, -1:]
+            else:
+                mask = (1 - target[:, -1:]).bool()
+            target_regions = target[:, :-1]
+        else:
+            target_regions = target
+            mask = None
+
+        dc_loss = self.dc(net_output, target_regions, loss_mask=mask)
+        target_regions = target_regions.float()
+
+        if mask is not None:
+            focal_loss = (self.focal(net_output, target_regions) * mask).sum() / torch.clip(mask.sum(), min=1e-8)
+        else:
+            focal_loss = self.focal(net_output, target_regions)
+
+        result = self.weight_focal * focal_loss + self.weight_dice * dc_loss
         return result
 
 
