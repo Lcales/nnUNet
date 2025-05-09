@@ -105,10 +105,10 @@ class DC_and_BCE_loss(nn.Module):
         return result
 
 
-class DC_and_Focal_loss(nn.Module):
+class DC_and_FocalLoss(nn.Module):
     def __init__(self, focal_kwargs, soft_dice_kwargs, weight_focal=1, weight_dice=1, use_ignore_label: bool = False,
                  dice_class=MemoryEfficientSoftDiceLoss):
-        super(DC_and_Focal_loss, self).__init__()
+        super(DC_and_FocalLoss, self).__init__()
 
         if use_ignore_label:
             focal_kwargs['reduction'] = 'none'
