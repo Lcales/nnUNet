@@ -12,9 +12,7 @@ class nnUNetTrainerDice(nnUNetTrainer):
                  device: torch.device = torch.device('cuda')):
         super().__init__(plans, configuration, fold, dataset_json, device)
         self.num_epochs = 50  # ⬅️ Training limit modificato
-
-
-class nnUNetTrainerDice(nnUNetTrainer):
+                     
     def _build_loss(self):
         loss = MemoryEfficientSoftDiceLoss(**{'batch_dice': self.configuration_manager.batch_dice,
                                     'do_bg': self.label_manager.has_regions, 'smooth': 1e-5, 'ddp': self.is_ddp},
